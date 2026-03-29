@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<title>إدارة الطلبات - نسخة Responsive</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+  body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f6f8; margin: 0; padding: 0; }
+  h1 { text-align: center; padding: 20px; color: #222; font-size: 1.8rem; }
+
+  .container { max-width: 1000px; margin: 20px auto; background: #fff; padding: 20px; border-radius: 15px; box-shadow: 0 8px 20px rgba(0,0,0,0.1); overflow-x:auto; }
+
+  .search-container, .sort-buttons, .export-buttons { text-align:center; margin:10px 0; display:flex; flex-wrap:wrap; justify-content:center; gap:10px; }
+
+  input#search { padding:6px 12px; border-radius:8px; border:1px solid #ccc; width:250px; font-size:14px; flex:1; min-width:150px; }
+  button { padding: 6px 12px; border: none; border-radius: 6px; cursor: pointer; margin:2px; font-size:14px; display:flex; align-items:center; gap:5px; }
+  button.delete { background:#e74c3c; color:white; }
+  button.delete:hover { background:#c0392b; }
+  .sort-buttons button, .export-buttons button { background:#3498db; color:white; }
+  .sort-buttons button:hover, .export-buttons button:hover { background:#2980b9; }
+  select { padding:5px 8px; border-radius:5px; border:1px solid #ccc; font-size:14px; }
+
+  table { width:100%; border-collapse: collapse; font-size:14px; min-width:700px; }
+  th, td { border:1px solid #ddd; padding:10px; text-align:center; }
+  th { background: linear-gradient(90deg,#4b79a1,#283e51); color:white; }
+  tr:nth-child(even) { background:#f9f9f9; }
+  tr:hover { background:#eef6ff; }
+
+  /* Media Queries */
+  @media(max-width: 768px){
+    h1 { font-size:1.5rem; }
+    table, thead, tbody, th, td, tr { display:block; }
+    thead { display:none; }
+    tr { margin-bottom:15px; border:1px solid #ccc; border-radius:8px; padding:10px; }
+    td { text-align:right; padding-left:50%; position:relative; }
+    td::before { position:absolute; left:10px; width:45%; white-space:nowrap; font-weight:bold; text-align:left; }
+    td:nth-of-type(1)::before { content:"الإسم"; }
+    td:nth-of-type(2)::before { content:"العنوان"; }
+    td:nth-of-type(3)::before { content:"طريقة الدفع"; }
+    td:nth-of-type(4)::before { content:"المنتجات"; }
+    td:nth-of-type(5)::before { content:"المجموع الكلي"; }
+    td:nth-of-type(6)::before { content:"الحالة / إدارة"; }
+    .search-container, .sort-buttons, .export-buttons { flex-direction:column; }
+    input#search { width:90%; }
+    button { width:90%; justify-content:center; }
+  }
+</style>
+</head>
+<body>
+
+<h1>📋 إدارة الطلبات - Responsive</h1>
+
+<div class="container">
+
+  <div class="search-container">
+    <input type="text" id="search" placeholder="🔍 ابحث باسم العميل">
+  </div>
+
+  <div class="sort-buttons">
+    <button id="sort-date"><i class="fa-solid fa-calendar"></i> ترتيب حسب التاريخ</button>
+    <button id="sort-total"><i class="fa-solid fa-dollar-sign"></i> ترتيب حسب المجموع</button>
+  </div>
+
+  <div class="export-buttons">
+    <button id="export-excel"><i class="fa-solid fa-file-excel"></i> تصدير Excel</button>
+    <button id="export-pdf"><i class="fa-solid fa-file-pdf"></i> تصدير PDF</button>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>الإسم</th>
+        <th>العنوان</th>
+        <th>طريقة الدفع</th>
+        <th>المنتجات</th>
+        <th>المجموع الكلي</th>
+        <th>الحالة / إدارة</th>
+      </tr>
+    </thead>
+    <tbody id="orders-table"></tbody>
+  </table>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<script>
+let currentSort = "";
+let currentSearch = "";
+
+// جلب الطلبات وعرضها
+function fetchOrders(sortBy="", searchQuery="") {
+  fetch("http://localhost:5000/orders")
+    .then(res => res.json())
+    .then(orders => {
+      currentSort = sortBy;
+      currentSearch = searchQuery;
+
+      if(searchQuery){
+        orders = orders.filter(order => order.name.toLowerCase().includes(searchQuery.toLowerCase()));
+      }
+
+      if(sortBy==="total"){
+        orders.sort((a,b) => b.cart.reduce((sum,i)=>sum+i.price*i.quantity,0) - a.cart.reduce((sum,i)=>sum+i.price*i.quantity,0));
+      } else if(sortBy==="date"){
+        orders.sort((a,b) => new Date(b.date) - new Date(a.date));
+      }
+
+      const table = document.getElementById("orders-table");
+      table.innerHTML = "";
+      orders.forEach((order,index)=>{
+        const productsList = order.cart.map(i=>`${i.name} x${i.quantity}`).join(", ");
+        const total = order.cart.reduce((sum,i)=>sum+i.price*i.quantity,0);
+        const tr = document.createElement("tr");
+        tr.innerHTML=`
+          <td>${order.name}</td>
+          <td>${order.address}</td>
+          <td>${order.payment}</td>
+          <td>${productsList}</td>
+          <td>$${total}</td>
+          <td>
+            <select onchange="updateStatus(${index}, this.value)">
+              <option ${order.status==='قيد المعالجة'?'selected':''}>قيد المعالجة</option>
+              <option ${order.status==='مكتمل'?'selected':''}>مكتمل</option>
+            </select>
+            <button class="delete" onclick="deleteOrder(${index})"><i class="fa-solid fa-trash"></i> حذف</button>
+          </td>
+        `;
+        table.appendChild(tr);
+      });
+    });
+}
+
+function updateStatus(index,status){
+  fetch(`http://localhost:5000/orders/${index}`,{
+    method:"PATCH",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({status})
+  }).then(()=>fetchOrders(currentSort,currentSearch));
+}
+
+function deleteOrder(index){
+  if(!confirm("هل تريد حذف هذا الطلب؟")) return;
+  fetch(`http://localhost:5000/orders/${index}`,{method:"DELETE"}).then(()=>fetchOrders(currentSort,currentSearch));
+}
+
+document.getElementById("search").addEventListener("input",(e)=>fetchOrders(currentSort,e.target.value));
+document.getElementById("sort-date").addEventListener("click",()=>fetchOrders("date",currentSearch));
+document.getElementById("sort-total").addEventListener("click",()=>fetchOrders("total",currentSearch));
+
+// Excel
+document.getElementById("export-excel").addEventListener("click",()=>{
+  fetch("http://localhost:5000/orders")
+    .then(res=>res.json())
+    .then(orders=>{
+      const wsData = orders.map(order=>({
+        الاسم:order.name,
+        العنوان:order.address,
+        الدفع:order.payment,
+        المنتجات:order.cart.map(i=>`${i.name} x${i.quantity}`).join(", "),
+        المجموع:order.cart.reduce((sum,i)=>sum+i.price*i.quantity,0),
+        الحالة:order.status,
+        التاريخ:order.date
+      }));
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(wsData);
+      XLSX.utils.book_append_sheet(wb,ws,"Orders");
+      XLSX.writeFile(wb,"Orders.xlsx");
+    });
+});
+
+// PDF
+document.getElementById("export-pdf").addEventListener("click",()=>{
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  fetch("http://localhost:5000/orders")
+    .then(res=>res.json())
+    .then(orders=>{
+      let y = 10;
+      doc.setFontSize(12);
+      doc.text("📋 إدارة الطلبات",105,y,{align:"center"}); y+=10;
+      orders.forEach(order=>{
+        const productsList = order.cart.map(i=>`${i.name} x${i.quantity}`).join(", ");
+        const total = order.cart.reduce((sum,i)=>sum+i.price*i.quantity,0);
+        doc.text(`الاسم: ${order.name} | العنوان: ${order.address} | الدفع: ${order.payment} | المنتجات: ${productsList} | المجموع: $${total} | الحالة: ${order.status}`,10,y);
+        y+=8;
+      });
+      doc.save("Orders.pdf");
+    });
+});
+
+fetchOrders();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<title>متجري الرقمي</title>
+<style>
+  body { font-family: Arial, sans-serif; background:#f4f4f4; margin:0; padding:0; }
+  header { background:#007bff; color:white; padding:20px; text-align:center; font-size:1.8rem; }
+  .products { display:flex; flex-wrap:wrap; justify-content:center; gap:20px; padding:20px; }
+  .product { background:white; border-radius:10px; padding:15px; width:200px; box-shadow:0 4px 10px rgba(0,0,0,0.1); text-align:center; }
+  .product h3 { margin:10px 0; }
+  .product p { margin:5px 0; }
+  .product button { background:#28a745; color:white; border:none; padding:8px 12px; border-radius:5px; cursor:pointer; }
+  .cart { position:fixed; top:20px; right:20px; background:white; padding:10px; border-radius:10px; box-shadow:0 4px 10px rgba(0,0,0,0.1); width:250px; max-height:80vh; overflow:auto; }
+  .cart h3 { margin-top:0; }
+  .cart-item { display:flex; justify-content:space-between; margin:5px 0; }
+  .cart-item button { background:#dc3545; border:none; color:white; border-radius:5px; cursor:pointer; }
+  .checkout-btn { background:#007bff; color:white; border:none; padding:8px 12px; border-radius:5px; width:100%; cursor:pointer; margin-top:10px; }
+  @media(max-width:768px){ .products{flex-direction:column;align-items:center;} .cart{width:90%;right:5%;top:auto;bottom:20px;} }
+</style>
+</head>
+<body>
+
+<header>🛒 متجر المنتجات</header>
+
+<div class="products" id="products"></div>
+
+<div class="cart" id="cart">
+  <h3>السلة 🛒</h3>
+  <div id="cart-items"></div>
+  <p>المجموع: $<span id="total">0</span></p>
+  <button class="checkout-btn" onclick="goCheckout()">الدفع</button>
+</div>
+
+<script>
+// المنتجات
+const products = [
+  {id:1, name:"تيشرت", price:20},
+  {id:2, name:"ساعة", price:50}
+];
+
+const productsDiv = document.getElementById("products");
+const cartItemsDiv = document.getElementById("cart-items");
+const totalSpan = document.getElementById("total");
+
+let cart = JSON.parse(localStorage.getItem("cart")) || [];
+
+// عرض المنتجات
+function displayProducts(){
+  productsDiv.innerHTML="";
+  products.forEach(p=>{
+    const div = document.createElement("div");
+    div.className="product";
+    div.innerHTML=`<h3>${p.name}</h3><p>السعر: $${p.price}</p><button onclick="addToCart(${p.id})">أضف للسلة</button>`;
+    productsDiv.appendChild(div);
+  });
+}
+
+// إضافة للسلة
+function addToCart(id){
+  const product = products.find(p=>p.id===id);
+  const exist = cart.find(i=>i.id===id);
+  if(exist){ exist.quantity++; } else { cart.push({...product, quantity:1}); }
+  updateCart();
+}
+
+// حذف من السلة
+function removeFromCart(id){
+  cart = cart.filter(i=>i.id!==id);
+  updateCart();
+}
+
+// تحديث السلة
+function updateCart(){
+  cartItemsDiv.innerHTML="";
+  let total=0;
+  cart.forEach(item=>{
+    total += item.price*item.quantity;
+    const div = document.createElement("div");
+    div.className="cart-item";
+    div.innerHTML=`${item.name} x${item.quantity} <button onclick="removeFromCart(${item.id})">❌</button>`;
+    cartItemsDiv.appendChild(div);
+  });
+  totalSpan.innerText=total;
+  localStorage.setItem("cart", JSON.stringify(cart));
+}
+
+// الدفع
+function goCheckout(){
+  if(cart.length===0){ alert("السلة فارغة!"); return; }
+  window.location.href="checkout.html";
+}
+
+// أول عرض
+displayProducts();
+updateCart();
+</script>
+
+</body>
+</html>

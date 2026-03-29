@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<title>الدفع - متجر المنتجات</title>
+<style>
+  body{font-family:Arial,sans-serif;background:#f4f4f4;margin:0;padding:0;}
+  header{background:#007bff;color:white;padding:20px;text-align:center;font-size:1.8rem;}
+  .container{max-width:500px;margin:30px auto;background:white;padding:20px;border-radius:10px;box-shadow:0 4px 10px rgba(0,0,0,0.1);}
+  input, select, button{width:100%;padding:10px;margin:10px 0;border-radius:5px;border:1px solid #ccc;font-size:14px;}
+  button{background:#28a745;color:white;border:none;cursor:pointer;}
+  button:hover{background:#218838;}
+</style>
+</head>
+<body>
+
+<header>💳 الدفع</header>
+
+<div class="container">
+  <h3>أدخل معلوماتك</h3>
+  <input type="text" id="name" placeholder="الاسم">
+  <input type="text" id="address" placeholder="العنوان">
+  <select id="payment">
+    <option value="كاش">كاش</option>
+    <option value="بطاقة ائتمان">بطاقة ائتمان</option>
+  </select>
+  <button onclick="placeOrder()">تأكيد الطلب</button>
+</div>
+
+<script>
+let cart = JSON.parse(localStorage.getItem("cart")) || [];
+
+function placeOrder(){
+  const name = document.getElementById("name").value.trim();
+  const address = document.getElementById("address").value.trim();
+  const payment = document.getElementById("payment").value;
+
+  if(!name || !address){ alert("املأ جميع الحقول!"); return; }
+  if(cart.length===0){ alert("السلة فارغة!"); return; }
+
+  const order = {
+    name, address, payment,
+    cart,
+    status:"قيد المعالجة",
+    date: new Date().toISOString()
+  };
+
+  // نرسل الطلب للـ Backend
+  fetch("http://localhost:5000/orders", {
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body: JSON.stringify(order)
+  }).then(res=>{
+    if(res.ok){
+      alert("تم تسجيل طلبك ✅");
+      localStorage.removeItem("cart");
+      window.location.href="index.html";
+    }
+  }).catch(err=>alert("خطأ في الاتصال بالخادم"));
+}
+</script>
+
+</body>
+</html>
